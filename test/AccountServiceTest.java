@@ -1,18 +1,10 @@
-import jdk.jshell.spi.ExecutionControl;
 import org.junit.jupiter.api.Test;
 
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class AccountServiceTest {
-    @Test
-    public void test() {
-
-        assertEquals(true, true);
-    }
-
     @Test
     public void Given_a_client_makes_a_deposit_of_1000_on_10_01_2012(){
         var date1 = new GregorianCalendar(2012, Calendar.JANUARY, 10);
@@ -33,34 +25,47 @@ public class AccountServiceTest {
         account.deposit(1000);
         account.deposit(2000);
         account.withdraw(500);
+        account.printStatement();
 
-        assertTrue(dateSystem.getCalls() == 3);
-        assertEquals(formatter.history, new AccountHistoryMock(
+        assertEquals(formatter.history,
             new ArrayList<>(Arrays.asList(
                 new Record(date1, 1000,1000),
                 new Record(date2, 2000,3000),
                 new Record(date3, -500,2500)
-            ))));
+            )));
     }
 
     public class Account implements AccountService {
+        private ArrayList<Record> history;
+        private DateOwn dateSystem;
+        private Formatter formatter;
 
         public Account(DateOwn dateSystem, Formatter formatter) {
-            new ExecutionControl.NotImplementedException("");
+            this.history = new ArrayList<>();
+            this.dateSystem = dateSystem;
+            this.formatter = formatter;
         }
 
-        public void deposit(int amount){
-            new ExecutionControl.NotImplementedException("");
+        public void deposit(int amount) {
+            int balance = history.stream()
+                .map((record) -> record.amount)
+                .reduce(0, (accumulator, current) -> accumulator + current);
+            balance += amount;
+            history.add(new Record(this.dateSystem.currentDate(), amount, balance));
         }
 
         @Override
         public void withdraw(int amount) {
-            new ExecutionControl.NotImplementedException("");
+            int balance = history.stream()
+                .map((record) -> record.amount)
+                .reduce(0, (accumulator, current) -> accumulator + current);
+            balance -= amount;
+            history.add(new Record(this.dateSystem.currentDate(), -amount, balance));
         }
 
         @Override
         public void printStatement() {
-            new ExecutionControl.NotImplementedException("");
+            formatter.format(history);
         }
     }
 
@@ -90,12 +95,12 @@ public class AccountServiceTest {
     }
 
     public interface Formatter {
-        String format(IAccountHistory history);
+        String format(ArrayList<Record> history);
     }
 
     public class FormatterMock implements Formatter {
 
-        public IAccountHistory history;
+        public ArrayList<Record> history;
         private String fakeString;
 
         public FormatterMock(String fakeString) {
@@ -103,32 +108,9 @@ public class AccountServiceTest {
         }
 
         @Override
-        public String format(IAccountHistory history) {
+        public String format(ArrayList<Record> history) {
             this.history = history;
             return fakeString;
-        }
-    }
-
-    public interface IAccountHistory{
-        void addRecord(GregorianCalendar date, int amount, int balance);
-        ArrayList getHistory();
-    }
-
-    public class AccountHistoryMock implements IAccountHistory{
-        public int calls = 0;
-        public ArrayList<Record> fakeHistory;
-
-
-        public AccountHistoryMock(ArrayList<Record> fakeHistory) {
-            this.fakeHistory = fakeHistory;
-        }
-
-        public void addRecord(GregorianCalendar date, int amount, int balance){
-            calls = calls +1;
-        }
-
-        public ArrayList<Record> getHistory(){
-            return fakeHistory;
         }
     }
 
@@ -153,6 +135,19 @@ public class AccountServiceTest {
 
         public int getBalance() {
             return balance;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            Record record = (Record) o;
+            return amount == record.amount && balance == record.balance && Objects.equals(date, record.date);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(date, amount, balance);
         }
     }
 }
