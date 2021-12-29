@@ -15,12 +15,14 @@ public class AccountServiceTest {
            date2,
            date3
         )));
+        var outputStatement = "Date       || Amount || Balance\n" +
+                "14/01/2012 || -500   || 2500\n" +
+                "13/01/2012 || 2000   || 3000\n" +
+                "10/01/2012 || 1000   || 1000";
         var formatter = new FormatterMock(
-                "Date       || Amount || Balance\n" +
-                        "14/01/2012 || -500   || 2500\n" +
-                        "13/01/2012 || 2000   || 3000\n" +
-                        "10/01/2012 || 1000   || 1000");
-        var account = new Account(dateSystem,formatter);
+                outputStatement);
+        ConsoleMock console = new ConsoleMock();
+        var account = new Account(dateSystem, formatter, console);
 
         account.deposit(1000);
         account.deposit(2000);
@@ -33,17 +35,37 @@ public class AccountServiceTest {
                 new Record(date2, 2000,3000),
                 new Record(date3, -500,2500)
             )));
+        assertEquals(outputStatement, console.lastPrint());
+    }
+
+    public interface Console {
+        public void print(String message);
+    }
+
+    public class ConsoleMock implements Console {
+        private String lastMessage;
+
+        @Override
+        public void print(String message) {
+            this.lastMessage = message;
+        }
+
+        public String lastPrint() {
+            return this.lastMessage;
+        }
     }
 
     public class Account implements AccountService {
         private ArrayList<Record> history;
         private DateOwn dateSystem;
         private Formatter formatter;
+        private Console console;
 
-        public Account(DateOwn dateSystem, Formatter formatter) {
+        public Account(DateOwn dateSystem, Formatter formatter, Console console) {
             this.history = new ArrayList<>();
             this.dateSystem = dateSystem;
             this.formatter = formatter;
+            this.console = console;
         }
 
         public void deposit(int amount) {
@@ -65,7 +87,7 @@ public class AccountServiceTest {
 
         @Override
         public void printStatement() {
-            formatter.format(history);
+            console.print(formatter.format(history));
         }
     }
 
@@ -74,16 +96,11 @@ public class AccountServiceTest {
     }
 
     public class DateOwnMock implements DateOwn {
-
         public ArrayList<GregorianCalendar> fakeDates;
         private int calls = 0;
 
         public DateOwnMock(ArrayList<GregorianCalendar> fakeDates) {
             this.fakeDates = fakeDates;
-        }
-
-        public int getCalls() {
-            return calls;
         }
 
         @Override
@@ -99,7 +116,6 @@ public class AccountServiceTest {
     }
 
     public class FormatterMock implements Formatter {
-
         public ArrayList<Record> history;
         private String fakeString;
 
